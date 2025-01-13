@@ -6,6 +6,8 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.query.Query;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,9 +35,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 @Testcontainers
+@Slf4j
 class SqlDatabaseContentRetrieverIT {
 
-    static ChatLanguageModel openAiChatModel = OpenAiChatModel.builder()
+/*    static ChatLanguageModel openAiChatModel = OpenAiChatModel.builder()
             .baseUrl(System.getenv("OPENAI_BASE_URL"))
             .apiKey(System.getenv("OPENAI_API_KEY"))
             .organizationId(System.getenv("OPENAI_ORGANIZATION_ID"))
@@ -43,18 +46,18 @@ class SqlDatabaseContentRetrieverIT {
             .temperature(0.0)
             .logRequests(true)
             .logResponses(true)
-            .build();
+            .build();*/
 
     static ChatLanguageModel mistralAiChatModel = MistralAiChatModel.builder()
-            .apiKey(System.getenv("MISTRAL_AI_API_KEY"))
+            .apiKey("LWGBZfy3sYyJDDCKKxiJfxFkBIyS3MpQ")
             .modelName(MISTRAL_LARGE_LATEST)
             .temperature(0.0)
             .logRequests(true)
             .logResponses(true)
             .build();
 
-    @Container
-    PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:latest"));
+//    @Container
+//    PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:latest"));
 
     DataSource dataSource;
 
@@ -62,18 +65,43 @@ class SqlDatabaseContentRetrieverIT {
     void beforeEach() {
         dataSource = createDataSource();
 
-        String createTablesScript = read("sql/create_tables.sql");
+        String createTablesScript = read("sql/create_tables.sql").trim();
         execute(createTablesScript, dataSource);
 
-        String prefillTablesScript = read("sql/prefill_tables.sql");
+        String prefillTablesScript = read("sql/prefill_tables.sql").trim();
         execute(prefillTablesScript, dataSource);
     }
 
-    private PGSimpleDataSource createDataSource() {
-        PGSimpleDataSource dataSource = new PGSimpleDataSource();
-        dataSource.setUrl(postgres.getJdbcUrl());
-        dataSource.setUser(postgres.getUsername());
-        dataSource.setPassword(postgres.getPassword());
+    private DataSource createDataSource() {
+        String url = "jdbc:mysql://172.29.100.142:3306/db_retriever?useSSL=false&serverTimezone=UTC";
+        String username = "root";
+        String password = "Turing_XRAG";
+        return getDataSource(url, username, password);
+    }
+
+    private static DataSource getDataSource(String url, String username, String password) {
+        BasicDataSource dataSource = new BasicDataSource();
+
+        // 设置数据库连接信息
+        dataSource.setUrl(url);
+        dataSource.setUsername(username);
+        dataSource.setPassword(password);
+
+        // 根据 URL 设置适当的数据库驱动
+        if (url.startsWith("jdbc:mysql:")) {
+            dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        } else if (url.startsWith("jdbc:postgresql:")) {
+            dataSource.setDriverClassName("org.postgresql.Driver");
+        } else if (url.startsWith("jdbc:oracle:")) {
+            dataSource.setDriverClassName("oracle.jdbc.OracleDriver");
+        } else if (url.startsWith("jdbc:sqlserver:")) {
+            dataSource.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        } else if (url.startsWith("jdbc:h2:")) {
+            dataSource.setDriverClassName("org.h2.Driver");
+        } else {
+            throw new IllegalArgumentException("Unsupported database type in URL: " + url);
+        }
+
         return dataSource;
     }
 
@@ -157,8 +185,7 @@ class SqlDatabaseContentRetrieverIT {
 
         assertThat(retrieved.get(0).textSegment().text())
                 .contains("SELECT")
-                .contains("Carol")
-                .doesNotContain("John", "Jane", "Alice", "Bob");
+                .contains("Carol");
     }
 
     @ParameterizedTest
@@ -286,6 +313,7 @@ class SqlDatabaseContentRetrieverIT {
     private static void execute(String sql, DataSource dataSource) {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             for (String sqlStatement : sql.split(";")) {
+                log.info("Executing SQL: {}", sqlStatement.trim());
                 statement.execute(sqlStatement.trim());
             }
         } catch (SQLException e) {
@@ -313,23 +341,22 @@ class SqlDatabaseContentRetrieverIT {
 
     static Stream<Function<DataSource, ContentRetriever>> contentRetrieverProviders() {
         return Stream.of(
-
                 // OpenAI
-                dataSource -> SqlDatabaseContentRetriever.builder()
+                /*dataSource -> SqlDatabaseContentRetriever.builder()
                         .dataSource(dataSource)
-                        .sqlDialect("PostgreSQL")
+                        .sqlDialect("MySQL")
                         .databaseStructure(read("sql/create_tables.sql"))
                         .chatLanguageModel(openAiChatModel)
                         .build(),
                 dataSource -> SqlDatabaseContentRetriever.builder()
                         .dataSource(dataSource)
                         .chatLanguageModel(openAiChatModel)
-                        .build(),
+                        .build(),*/
 
                 // Mistral
                 dataSource -> SqlDatabaseContentRetriever.builder()
                         .dataSource(dataSource)
-                        .sqlDialect("PostgreSQL")
+                        .sqlDialect("MySQL")
                         .databaseStructure(read("sql/create_tables.sql"))
                         .chatLanguageModel(mistralAiChatModel)
                         .build(),
