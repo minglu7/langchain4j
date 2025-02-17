@@ -1,5 +1,22 @@
 package dev.langchain4j.model.openai;
 
+import static dev.ai4j.openai4j.chat.ResponseFormatType.JSON_OBJECT;
+import static dev.ai4j.openai4j.chat.ResponseFormatType.JSON_SCHEMA;
+import static dev.ai4j.openai4j.chat.ToolType.FUNCTION;
+import static dev.langchain4j.internal.Exceptions.illegalArgument;
+import static dev.langchain4j.internal.Utils.isNullOrBlank;
+import static dev.langchain4j.internal.Utils.isNullOrEmpty;
+import static dev.langchain4j.internal.ValidationUtils.ensureNotBlank;
+import static dev.langchain4j.model.chat.request.ResponseFormat.JSON;
+import static dev.langchain4j.model.chat.request.ResponseFormatType.TEXT;
+import static dev.langchain4j.model.output.FinishReason.CONTENT_FILTER;
+import static dev.langchain4j.model.output.FinishReason.LENGTH;
+import static dev.langchain4j.model.output.FinishReason.STOP;
+import static dev.langchain4j.model.output.FinishReason.TOOL_EXECUTION;
+import static java.lang.String.format;
+import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
+
 import dev.ai4j.openai4j.chat.AssistantMessage;
 import dev.ai4j.openai4j.chat.ChatCompletionRequest;
 import dev.ai4j.openai4j.chat.ChatCompletionResponse;
@@ -54,29 +71,11 @@ import dev.langchain4j.model.openai.OpenAiTokenUsage.InputTokensDetails;
 import dev.langchain4j.model.openai.OpenAiTokenUsage.OutputTokensDetails;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import static dev.ai4j.openai4j.chat.ResponseFormatType.JSON_OBJECT;
-import static dev.ai4j.openai4j.chat.ResponseFormatType.JSON_SCHEMA;
-import static dev.ai4j.openai4j.chat.ToolType.FUNCTION;
-import static dev.langchain4j.internal.Exceptions.illegalArgument;
-import static dev.langchain4j.internal.Utils.isNullOrBlank;
-import static dev.langchain4j.internal.Utils.isNullOrEmpty;
-import static dev.langchain4j.internal.ValidationUtils.ensureNotBlank;
-import static dev.langchain4j.model.chat.request.ResponseFormat.JSON;
-import static dev.langchain4j.model.chat.request.ResponseFormatType.TEXT;
-import static dev.langchain4j.model.output.FinishReason.CONTENT_FILTER;
-import static dev.langchain4j.model.output.FinishReason.LENGTH;
-import static dev.langchain4j.model.output.FinishReason.STOP;
-import static dev.langchain4j.model.output.FinishReason.TOOL_EXECUTION;
-import static java.lang.String.format;
-import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toList;
 
 public class InternalOpenAiHelper {
 
@@ -193,7 +192,8 @@ public class InternalOpenAiHelper {
                 .type(ContentType.AUDIO)
                 .inputAudio(InputAudio.builder()
                         .data(ensureNotBlank(audioContent.audio().base64Data(), "audio.base64Data"))
-                        .format(extractSubtype(ensureNotBlank(audioContent.audio().mimeType(), "audio.mimeType")))
+                        .format(extractSubtype(
+                                ensureNotBlank(audioContent.audio().mimeType(), "audio.mimeType")))
                         .build())
                 .build();
     }
@@ -458,7 +458,7 @@ public class InternalOpenAiHelper {
                     .collect(toList());
             return isNullOrBlank(text)
                     ? AiMessage.from(toolExecutionRequests)
-                        : isNullOrEmpty(reasoningContent)
+                    : isNullOrEmpty(reasoningContent)
                             ? AiMessage.from(text, toolExecutionRequests)
                             : AiMessage.from(text, reasoningContent, toolExecutionRequests);
         }
@@ -471,8 +471,9 @@ public class InternalOpenAiHelper {
                     .build();
             return isNullOrBlank(text)
                     ? AiMessage.from(toolExecutionRequest)
-                    : isNullOrEmpty(reasoningContent) ? AiMessage.from(text, singletonList(toolExecutionRequest))
-                        : AiMessage.from(text, reasoningContent, singletonList(toolExecutionRequest));
+                    : isNullOrEmpty(reasoningContent)
+                            ? AiMessage.from(text, singletonList(toolExecutionRequest))
+                            : AiMessage.from(text, reasoningContent, singletonList(toolExecutionRequest));
         }
 
         return isNullOrEmpty(reasoningContent) ? AiMessage.from(text) : AiMessage.from(text, reasoningContent);
